@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SITTA UT - Stok Bahan Ajar</title>
+  <link rel="icon" type="image/png" href="assets/utlogo.png">
+
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+</head>
+<body class="dashboard-page">
+
+<div id="stokApp" class="dashboard-container">
+
+  <!-- Header -->
+  <div class="dash-header">
+    <div class="dash-logo-sec">
+      <img src="assets/utlogo.png" alt="Logo UT" class="dash-logo">
+      <div class="dash-title-sec">
+        <h1>SITTA</h1>
+        <p>Sistem Informasi Tiras dan Transaksi Bahan Ajar - Universitas Terbuka</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <div class="dash-nav">
+    <a href="index.html" class="nav-btn">Beranda Portal</a>
+    <a href="stok.html" class="nav-btn active">📦 Stok Bahan Ajar</a>
+    <a href="tracking.html" class="nav-btn">🚚 Tracking Delivery Order (DO)</a>
+  </div>
+
+  <!-- Filter Panel -->
+  <div class="dash-card">
+    <div class="card-title">
+      <h3>🔍 Panel Pemantauan & Filter Stok</h3>
+    </div>
+    <div class="filter-grid">
+      <div class="form-group">
+        <label>Cari Judul / Kode Buku:</label>
+        <input type="text" placeholder="Ketik nama mata kuliah..." v-model="searchQuery">
+      </div>
+      <div class="form-group">
+        <label>Filter Wilayah UT-Daerah:</label>
+        <select v-model="selectedUPBJJ">
+          <option value="">-- Semua Wilayah --</option>
+          <option v-for="u in upbjjList" :value="u">{{ u }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Urutkan Berdasarkan (Sorting):</label>
+        <select v-model="sortBy">
+          <option value="">-- Tanpa Urutan --</option>
+          <option value="kode">Kode</option>
+          <option value="qty">Qty</option>
+          <option value="harga">Harga</option>
+        </select>
+      </div>
+    </div>
+    <div class="filter-actions">
+      <label class="checkbox-label" style="color: #d9534f; font-weight: bold;">
+        <input type="checkbox" v-model="onlyWarning"> ⚠️ Tampilkan Hanya Batas Kritis (Re-order Alert)
+      </label>
+      <button class="reset-btn" @click="resetFilter">Reset Semua Filter</button>
+    </div>
+  </div>
+
+  <!-- Table Card -->
+  <div class="dash-card">
+    <div class="card-title">
+      <h3>📋 Daftar Manajemen Inventaris Bahan Ajar</h3>
+    </div>
+    <div class="table-responsive">
+      <table class="stok-table">
+        <thead>
+          <tr>
+            <th>KODE</th>
+            <th>JUDUL MATA KULIAH</th>
+            <th>UT-DAERAH & RAK</th>
+            <th>HARGA SATUAN</th>
+            <th>STOK (BISA DIEDIT)</th>
+            <th>STATUS GUDANG</th>
+            <th>CATATAN MODUL</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, index) in filteredStok" :key="index">
+            <td><strong>{{ item.kode }}</strong></td>
+            <td>
+              {{ item.judul }}<br>
+              <span class="badge-gray">{{ item.kategori }}</span>
+            </td>
+            <td>
+              <strong>{{ item.upbjj }}</strong><br>
+              <span style="color:#666; font-size:12px;">Rak: {{ item.lokasiRak }}</span>
+            </td>
+            <td>Rp {{ parseInt(item.harga).toLocaleString('id-ID') }}</td>
+            <td>
+              <input type="number" v-model.number="item.qty" class="qty-input">
+            </td>
+            <td>
+              <span v-if="item.qty === 0" class="badge-red">❌ Kosong</span>
+              <span v-else-if="item.qty <= item.safety" class="badge-yellow">⚠️ Menipis</span>
+              <span v-else class="badge-green">✅ Aman</span>
+            </td>
+            <td v-html="item.catatanHTML"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Form Card -->
+  <div class="dash-card">
+    <div class="card-title">
+      <h3>📝 Input Tambah Stok Bahan Ajar Baru</h3>
+    </div>
+    <div class="input-grid">
+      <div class="form-group">
+        <label>Kode Buku M.K:</label>
+        <input type="text" placeholder="Contoh: STSI4209" v-model="form.kode">
+      </div>
+      <div class="form-group">
+        <label>Judul Mata Kuliah:</label>
+        <input type="text" placeholder="Contoh: Pemrograman Berbasis Web" v-model="form.judul">
+      </div>
+      <div class="form-group">
+        <label>Kategori Modul Buku:</label>
+        <select v-model="form.kategori">
+          <option value="">-- Pilih Kategori --</option>
+          <option v-for="k in kategoriList" :value="k">{{ k }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Penempatan Wilayah UT:</label>
+        <select v-model="form.upbjj">
+          <option value="">-- Pilih UT-Daerah --</option>
+          <option v-for="u in upbjjList" :value="u">{{ u }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Koordinat Lokasi Rak:</label>
+        <input type="text" placeholder="Contoh: R1-A5" v-model="form.lokasiRak">
+      </div>
+      <div class="form-group">
+        <label>Harga Satuan Buku (Rp):</label>
+        <input type="number" placeholder="Contoh: 50000" v-model="form.harga">
+      </div>
+      <div class="form-group">
+        <label>Jumlah Kuantitas Stok (Qty):</label>
+        <input type="number" placeholder="Contoh: 100" v-model="form.qty">
+      </div>
+      <div class="form-group">
+        <label>Batas Minimum Safety Stock:</label>
+        <input type="number" placeholder="Contoh: 15" v-model="form.safety">
+      </div>
+    </div>
+    <div class="form-action" style="margin-top: 20px;">
+      <button class="save-btn" @click="saveData">Simpan ke Database Gudang</button>
+      <p class="error-msg" v-show="errorMessage" style="color:red; margin-top:10px;">{{ errorMessage }}</p>
+    </div>
+  </div>
+
+</div>
+
+<script src="js/dataBahanAjar.js"></script>
+<script src="js/stok-app.js"></script>
+
+</body>
+</html>

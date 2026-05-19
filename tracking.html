@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SITTA UT - Tracking DO</title>
+  <link rel="icon" type="image/png" href="assets/utlogo.png">
+
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+</head>
+<body class="dashboard-page">
+
+<div id="trackingApp" class="dashboard-container">
+
+  <!-- Header -->
+  <div class="dash-header">
+    <div class="dash-logo-sec">
+      <img src="assets/utlogo.png" alt="Logo UT" class="dash-logo">
+      <div class="dash-title-sec">
+        <h1>SITTA</h1>
+        <p>Sistem Informasi Tiras dan Transaksi Bahan Ajar - Universitas Terbuka</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <div class="dash-nav">
+    <a href="index.html" class="nav-btn">Beranda Portal</a>
+    <a href="stok.html" class="nav-btn">📦 Stok Bahan Ajar</a>
+    <a href="tracking.html" class="nav-btn active">🚚 Tracking Delivery Order (DO)</a>
+  </div>
+
+  <!-- Form Card -->
+  <div class="dash-card">
+    <div class="card-title">
+      <h3>Buat & Tambah Input Delivery Order (DO) Baru</h3>
+    </div>
+    
+    <div class="filter-grid">
+      <div class="form-group">
+        <label>Nomor DO (Tergenerate Otomatis):</label>
+        <input type="text" v-model="form.noDO" disabled class="disabled-input">
+      </div>
+      <div class="form-group">
+        <label>NIM Mahasiswa:</label>
+        <input type="text" placeholder="Masukkan NIM manual" v-model="form.nim">
+      </div>
+      <div class="form-group">
+        <label>Nama Mahasiswa:</label>
+        <input type="text" placeholder="Masukkan nama manual" v-model="form.nama">
+      </div>
+      
+      <div class="form-group">
+        <label>Jenis Ekspedisi Kirim:</label>
+        <select v-model="form.ekspedisi">
+          <option value="">-- Pilih Ekspedisi --</option>
+          <option v-for="e in pengirimanList" :value="e.nama">{{ e.nama }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Paket Bahan Ajar:</label>
+        <select v-model="selectedPaket">
+          <option value="">-- Pilih Paket Buku --</option>
+          <option v-for="p in paket" :value="p">{{ p.kode }} - {{ p.nama }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tanggal Kirim:</label>
+        <input type="date" v-model="form.tanggalKirim">
+      </div>
+      
+      <div class="form-group">
+        <label>Total Harga Paket (Otomatis):</label>
+        <input type="text" :value="'Rp ' + (form.total || 0).toLocaleString('id-ID')" disabled class="disabled-input">
+      </div>
+    </div>
+    
+    <div class="form-action" style="margin-top: 20px;">
+      <button class="save-btn" @click="tambahDO">Proses & Terbitkan DO Baru</button>
+    </div>
+  </div>
+
+  <!-- Tracking Search Card -->
+  <div class="dash-card">
+    <div class="card-title">
+      <h3>🔍 Lacak Status Pendistribusian Paket</h3>
+    </div>
+    
+    <div class="search-do-wrapper">
+      <input type="text" placeholder="Masukkan Nomor DO (Contoh: DO2025-0001)" v-model="searchDO" class="search-do-input">
+      <button class="search-do-btn" @click="cekStatus">Cek Status</button>
+    </div>
+    
+    <p class="search-do-help" v-if="!foundDO"><i class="fa-solid fa-circle-info"></i> Silakan masukkan nomor DO yang terdaftar untuk melacak pergerakan paket.</p>
+    
+    <!-- Modern Tracking Result Detail -->
+    <div class="tracking-detail" v-if="foundDO">
+      
+      <!-- Top Status Header -->
+      <div class="tracking-detail-header">
+        <div>
+          <span class="tracking-subtitle">Hasil Pelacakan untuk DO:</span>
+          <h2>{{ foundDO.noDO || searchDO.toUpperCase() }}</h2>
+        </div>
+        <div class="tracking-status-badge">
+          <i class="fa-solid fa-truck-fast"></i> {{ foundDO.status || 'Sedang Diproses' }}
+        </div>
+      </div>
+
+      <!-- Info Cards Grid -->
+      <div class="tracking-info-grid">
+        <div class="info-card">
+          <div class="info-icon"><i class="fa-solid fa-user-graduate"></i></div>
+          <div class="info-text">
+            <span class="info-label">Penerima (NIM)</span>
+            <span class="info-value">{{ foundDO.nama }} ({{ foundDO.nim }})</span>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <div class="info-icon"><i class="fa-solid fa-box-open"></i></div>
+          <div class="info-text">
+            <span class="info-label">Paket Bahan Ajar</span>
+            <span class="info-value">{{ foundDO.paket }}</span>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <div class="info-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
+          <div class="info-text">
+            <span class="info-label">Total Transaksi</span>
+            <span class="info-value">Rp {{ parseInt(foundDO.total || 0).toLocaleString('id-ID') }}</span>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <div class="info-icon"><i class="fa-solid fa-shipping-fast"></i></div>
+          <div class="info-text">
+            <span class="info-label">Ekspedisi (Tgl Kirim)</span>
+            <span class="info-value">{{ foundDO.ekspedisi }} - {{ foundDO.tanggalKirim || 'TBA' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vertical Timeline -->
+      <div class="tracking-timeline-container">
+        <h4><i class="fa-solid fa-route"></i> Histori Perjalanan Paket</h4>
+        
+        <ul class="timeline" v-if="foundDO.perjalanan && foundDO.perjalanan.length > 0">
+          <li v-for="(step, i) in foundDO.perjalanan.slice().reverse()" :key="i" :class="{'active': i === 0}">
+            <div class="time">{{ step.waktu }}</div>
+            <div class="desc">{{ step.keterangan }}</div>
+          </li>
+        </ul>
+        
+        <ul class="timeline" v-else>
+          <li class="active">
+            <div class="time">Hari Ini</div>
+            <div class="desc">Menunggu penjemputan oleh kurir {{ foundDO.ekspedisi }}</div>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script src="js/dataBahanAjar.js"></script>
+<script src="js/tracking-app.js"></script>
+
+</body>
+</html>
